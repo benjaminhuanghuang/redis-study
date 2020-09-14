@@ -19,6 +19,9 @@ struct redisServer
   char *configfile; /* Absolute config file path, or NULL */
 };
 
-extern struct redisServer server;
+/*-----------------------------------------------------------------------------
+ * Extern declarations
+ *----------------------------------------------------------------------------*/
+extern struct redisServer server;        
 
 #endif
