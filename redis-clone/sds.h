@@ -54,11 +54,118 @@ struct __attribute__((__packed__)) sdshdr64
 #define SDS_TYPE_32 3
 #define SDS_TYPE_64 4
 
-#define SDS_TYPE_MASK 7    // 0b111
-#define SDS_TYPE_BITS 3   
+#define SDS_TYPE_MASK 7 // 0b111
+#define SDS_TYPE_BITS 3 // in flages, 3 lsb is the type
 
-#define SDS_HDR_VAR(T,s) struct sdshdr##T *sh = (void*)((s)-(sizeof(struct sdshdr##T)));
-#define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
-#define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
+//
+#define SDS_HDR_VAR(T, s) struct sdshdr##T *sh = (void *)((s) - (sizeof(struct sdshdr##T)));
+//
+#define SDS_HDR(T, s) ((struct sdshdr##T *)((s) - (sizeof(struct sdshdr##T))))
+// in flags of sdshdr5, the 5 msb of string length
+#define SDS_TYPE_5_LEN(f) ((f) >> SDS_TYPE_BITS)
 
+static inline size_t sdslen(const sds s)
+{
+  unsigned char flags = s[-1];
+  switch (flags & SDS_TYPE_MASK)
+  {
+  case SDS_TYPE_5:
+    return SDS_TYPE_5_LEN(flags);
+  case SDS_TYPE_8:
+    return SDS_HDR(8, s)->len;
+  case SDS_TYPE_16:
+    return SDS_HDR(16, s)->len;
+  case SDS_TYPE_32:
+    return SDS_HDR(32, s)->len;
+  case SDS_TYPE_64:
+    return SDS_HDR(64, s)->len;
+  }
+  return 0;
+}
+
+static inline size_t sdsavail(const sds s)
+{
+  unsigned char flags = s[-1];
+  switch (flags & SDS_TYPE_MASK)
+  {
+  case SDS_TYPE_5:
+  {
+    return 0;
+  }
+  case SDS_TYPE_8:
+  {
+    SDS_HDR_VAR(8, s);
+    return sh->alloc - sh->len;
+  }
+  case SDS_TYPE_16:
+  {
+    SDS_HDR_VAR(16, s);
+    return sh->alloc - sh->len;
+  }
+  case SDS_TYPE_32:
+  {
+    SDS_HDR_VAR(32, s);
+    return sh->alloc - sh->len;
+  }
+  case SDS_TYPE_64:
+  {
+    SDS_HDR_VAR(64, s);
+    return sh->alloc - sh->len;
+  }
+  }
+  return 0;
+}
+
+static inline void sdssetlen(sds s, size_t newlen)
+{
+  unsigned char flags = s[-1];
+  switch (flags & SDS_TYPE_MASK)
+  {
+  case SDS_TYPE_5:
+  {
+    unsigned char *fp = ((unsigned char *)s) - 1;
+    *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
+  }
+  break;
+  case SDS_TYPE_8:
+    SDS_HDR(8, s)->len = newlen;
+    break;
+  case SDS_TYPE_16:
+    SDS_HDR(16, s)->len = newlen;
+    break;
+  case SDS_TYPE_32:
+    SDS_HDR(32, s)->len = newlen;
+    break;
+  case SDS_TYPE_64:
+    SDS_HDR(64, s)->len = newlen;
+    break;
+  }
+}
+
+static inline void sdsinclen(sds s, size_t inc)
+{
+  unsigned char flags = s[-1];
+  switch (flags & SDS_TYPE_MASK)
+  {
+  case SDS_TYPE_5:
+  {
+    unsigned char *fp = ((unsigned char *)s) - 1;
+    unsigned char newlen = SDS_TYPE_5_LEN(flags) + inc;
+    *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
+  }
+  break;
+  case SDS_TYPE_8:
+    SDS_HDR(8, s)->len += inc;
+    break;
+  case SDS_TYPE_16:
+    SDS_HDR(16, s)->len += inc;
+    break;
+  case SDS_TYPE_32:
+    SDS_HDR(32, s)->len += inc;
+    break;
+  case SDS_TYPE_64:
+    SDS_HDR(64, s)->len += inc;
+    break;
+  }
+}
 #endif
