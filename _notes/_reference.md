@@ -7,3 +7,5 @@
 - Redis 源码日志
 
 - 曹工说Redis源码
+
+- 阅读redis源码(https://github.com/vimiix/read-redis-src)

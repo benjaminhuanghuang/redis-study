@@ -8,7 +8,7 @@ void redisAsciiArt(void)
 {
 #include "modules/asciilogo.h"
   char *buf = (char *)malloc(1024 * 16);
-  char *mode = "clone!";
+  const char *mode = "clone!";
   int port = 3721;
   long pid = 1234;
 
