@@ -40,56 +40,58 @@ static inline int sdsHdrSize(char type)
     return 0;
 }
 
-
-static inline void sdssetlen(sds s, size_t newlen) {
+static inline void sdssetlen(sds s, size_t newlen)
+{
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
-        case SDS_TYPE_5:
-            {
-                unsigned char *fp = ((unsigned char*)s)-1;
-                *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
-            }
-            break;
-        case SDS_TYPE_8:
-            SDS_HDR(8,s)->len = newlen;
-            break;
-        case SDS_TYPE_16:
-            SDS_HDR(16,s)->len = newlen;
-            break;
-        case SDS_TYPE_32:
-            SDS_HDR(32,s)->len = newlen;
-            break;
-        case SDS_TYPE_64:
-            SDS_HDR(64,s)->len = newlen;
-            break;
+    switch (flags & SDS_TYPE_MASK)
+    {
+    case SDS_TYPE_5:
+    {
+        unsigned char *fp = ((unsigned char *)s) - 1;
+        *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
+    }
+    break;
+    case SDS_TYPE_8:
+        SDS_HDR(8, s)->len = newlen;
+        break;
+    case SDS_TYPE_16:
+        SDS_HDR(16, s)->len = newlen;
+        break;
+    case SDS_TYPE_32:
+        SDS_HDR(32, s)->len = newlen;
+        break;
+    case SDS_TYPE_64:
+        SDS_HDR(64, s)->len = newlen;
+        break;
     }
 }
 
-static inline void sdsinclen(sds s, size_t inc) {
+static inline void sdsinclen(sds s, size_t inc)
+{
     unsigned char flags = s[-1];
-    switch(flags&SDS_TYPE_MASK) {
-        case SDS_TYPE_5:
-            {
-                unsigned char *fp = ((unsigned char*)s)-1;
-                unsigned char newlen = SDS_TYPE_5_LEN(flags)+inc;
-                *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
-            }
-            break;
-        case SDS_TYPE_8:
-            SDS_HDR(8,s)->len += inc;
-            break;
-        case SDS_TYPE_16:
-            SDS_HDR(16,s)->len += inc;
-            break;
-        case SDS_TYPE_32:
-            SDS_HDR(32,s)->len += inc;
-            break;
-        case SDS_TYPE_64:
-            SDS_HDR(64,s)->len += inc;
-            break;
+    switch (flags & SDS_TYPE_MASK)
+    {
+    case SDS_TYPE_5:
+    {
+        unsigned char *fp = ((unsigned char *)s) - 1;
+        unsigned char newlen = SDS_TYPE_5_LEN(flags) + inc;
+        *fp = SDS_TYPE_5 | (newlen << SDS_TYPE_BITS);
+    }
+    break;
+    case SDS_TYPE_8:
+        SDS_HDR(8, s)->len += inc;
+        break;
+    case SDS_TYPE_16:
+        SDS_HDR(16, s)->len += inc;
+        break;
+    case SDS_TYPE_32:
+        SDS_HDR(32, s)->len += inc;
+        break;
+    case SDS_TYPE_64:
+        SDS_HDR(64, s)->len += inc;
+        break;
     }
 }
-
 
 sds sdsnewlen(const void *init, size_t initlen)
 {
@@ -110,7 +112,7 @@ sds sdsnewlen(const void *init, size_t initlen)
         init = NULL;
     else if (!init)
         memset(sh, 0, hdrlen + initlen + 1);
-    s = (char *)sh + hdrlen;    // return the address of buf field
+    s = (char *)sh + hdrlen; // return the address of buf field
     fp = ((unsigned char *)s) - 1;
     switch (type)
     {
@@ -187,7 +189,61 @@ void sdsfree(sds s)
     s_free((char *)s - sdsHdrSize(s[-1]));
 }
 
-void sdsclear(sds s) {
+void sdsclear(sds s)
+{
     sdssetlen(s, 0);
     s[0] = '\0';
+}
+
+sds sdsMakeRoomFor(sds s, size_t addlen)
+{
+    void *sh, *newsh;
+    size_t avail = sdsavail(s);
+    size_t len, newlen;
+    char type, oldtype = s[-1] & SDS_TYPE_MASK;
+    int hdrlen;
+
+    /* Return ASAP if there is enough space left. */
+    if (avail >= addlen)
+        return s;
+
+    len = sdslen(s);
+    sh = (char *)s - sdsHdrSize(oldtype);
+    newlen = (len + addlen);
+    if (newlen < SDS_MAX_PREALLOC)
+        newlen *= 2;
+    else
+        newlen += SDS_MAX_PREALLOC;
+
+    type = sdsReqType(newlen);
+
+    /* Don't use type 5: the user is appending to the string and type 5 is
+     * not able to remember empty space, so sdsMakeRoomFor() must be called
+     * at every appending operation. */
+    if (type == SDS_TYPE_5)
+        type = SDS_TYPE_8;
+
+    hdrlen = sdsHdrSize(type);
+    if (oldtype == type)
+    {
+        newsh = s_realloc(sh, hdrlen + newlen + 1);
+        if (newsh == NULL)
+            return NULL;
+        s = (char *)newsh + hdrlen;
+    }
+    else
+    {
+        /* Since the header size changes, need to move the string forward,
+         * and can't use realloc */
+        newsh = s_malloc(hdrlen + newlen + 1);
+        if (newsh == NULL)
+            return NULL;
+        memcpy((char *)newsh + hdrlen, s, len + 1);
+        s_free(sh);
+        s = (char *)newsh + hdrlen;
+        s[-1] = type;
+        sdssetlen(s, len);
+    }
+    sdssetalloc(s, newlen);
+    return s;
 }
