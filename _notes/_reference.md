@@ -3,6 +3,7 @@
 ## Books
 - Redis5 设计与源码分析
 - Redis 设计与实现
+  - [Redis 3.0 源码注释](https://github.com/huangz1990/redis-3.0-annotated)
 
 
 ## Web
@@ -16,6 +17,8 @@
 
 - 如何阅读 Redis 源码(https://blog.huangz.me/diary/2014/how-to-read-redis-source-code.html)
 
+- 浅谈Redis五种数据结构的底层原理 (https://www.colabug.com/2019/0529/6312255/)
+
 ## Github
 redis 源码剖析和注释技术博客专栏
   - https://github.com/menwengit/redis_source_annotation
@@ -23,5 +26,5 @@ redis 源码剖析和注释技术博客专栏
 - A C++11 implementation of Redis Server, including cluster, use Leveldb for persist storage
   - https://github.com/loveyacper/Qedis
 
-
-- Learning Modern C By Playing with Redis: Implementing a New (and Almost Useless) Redis Command
+- Redis 1.0 code
+  https://code.google.com/archive/p/redis/downloads?page=6
