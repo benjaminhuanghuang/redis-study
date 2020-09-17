@@ -325,7 +325,7 @@ int main(int argc, char **argv) {
     struct redisCommand *rc;
 
     config.hostip = "127.0.0.1";
-    config.hostport = 6379;
+    config.hostport = 1975;   //6379;
 
     firstarg = parseOptions(argc,argv);
     argc -= firstarg;

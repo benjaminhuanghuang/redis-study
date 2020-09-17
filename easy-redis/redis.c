@@ -73,7 +73,7 @@
 #define REDIS_ERR               -1
 
 /* Static server configuration */
-#define REDIS_SERVERPORT        6379    /* TCP port */
+#define REDIS_SERVERPORT        1975    /* TCP port */
 #define REDIS_MAXIDLETIME       (60*5)  /* default client timeout */
 #define REDIS_IOBUF_LEN         1024
 #define REDIS_LOADBUF_LEN       1024
@@ -974,149 +974,6 @@ static int yesnotoi(char *s) {
     if (!strcasecmp(s,"yes")) return 1;
     else if (!strcasecmp(s,"no")) return 0;
     else return -1;
-}
-
-/* I agree, this is a very rudimental way to load a configuration...
-   will improve later if the config gets more complex */
-static void loadServerConfig(char *filename) {
-    FILE *fp;
-    char buf[REDIS_CONFIGLINE_MAX+1], *err = NULL;
-    int linenum = 0;
-    sds line = NULL;
-
-    if (filename[0] == '-' && filename[1] == '\0')
-        fp = stdin;
-    else {
-        if ((fp = fopen(filename,"r")) == NULL) {
-            redisLog(REDIS_WARNING,"Fatal error, can't open config file");
-            exit(1);
-        }
-    }
-
-    while(fgets(buf,REDIS_CONFIGLINE_MAX+1,fp) != NULL) {
-        sds *argv;
-        int argc, j;
-
-        linenum++;
-        line = sdsnew(buf);
-        line = sdstrim(line," \t\r\n");
-
-        /* Skip comments and blank lines*/
-        if (line[0] == '#' || line[0] == '\0') {
-            sdsfree(line);
-            continue;
-        }
-
-        /* Split into arguments */
-        argv = sdssplitlen(line,sdslen(line)," ",1,&argc);
-        sdstolower(argv[0]);
-
-        /* Execute config directives */
-        if (!strcasecmp(argv[0],"timeout") && argc == 2) {
-            server.maxidletime = atoi(argv[1]);
-            if (server.maxidletime < 0) {
-                err = "Invalid timeout value"; goto loaderr;
-            }
-        } else if (!strcasecmp(argv[0],"port") && argc == 2) {
-            server.port = atoi(argv[1]);
-            if (server.port < 1 || server.port > 65535) {
-                err = "Invalid port"; goto loaderr;
-            }
-        } else if (!strcasecmp(argv[0],"bind") && argc == 2) {
-            server.bindaddr = zstrdup(argv[1]);
-        } else if (!strcasecmp(argv[0],"save") && argc == 3) {
-            int seconds = atoi(argv[1]);
-            int changes = atoi(argv[2]);
-            if (seconds < 1 || changes < 0) {
-                err = "Invalid save parameters"; goto loaderr;
-            }
-            appendServerSaveParams(seconds,changes);
-        } else if (!strcasecmp(argv[0],"dir") && argc == 2) {
-            if (chdir(argv[1]) == -1) {
-                redisLog(REDIS_WARNING,"Can't chdir to '%s': %s",
-                    argv[1], strerror(errno));
-                exit(1);
-            }
-        } else if (!strcasecmp(argv[0],"loglevel") && argc == 2) {
-            if (!strcasecmp(argv[1],"debug")) server.verbosity = REDIS_DEBUG;
-            else if (!strcasecmp(argv[1],"notice")) server.verbosity = REDIS_NOTICE;
-            else if (!strcasecmp(argv[1],"warning")) server.verbosity = REDIS_WARNING;
-            else {
-                err = "Invalid log level. Must be one of debug, notice, warning";
-                goto loaderr;
-            }
-        } else if (!strcasecmp(argv[0],"logfile") && argc == 2) {
-            FILE *logfp;
-
-            server.logfile = zstrdup(argv[1]);
-            if (!strcasecmp(server.logfile,"stdout")) {
-                zfree(server.logfile);
-                server.logfile = NULL;
-            }
-            if (server.logfile) {
-                /* Test if we are able to open the file. The server will not
-                 * be able to abort just for this problem later... */
-                logfp = fopen(server.logfile,"a");
-                if (logfp == NULL) {
-                    err = sdscatprintf(sdsempty(),
-                        "Can't open the log file: %s", strerror(errno));
-                    goto loaderr;
-                }
-                fclose(logfp);
-            }
-        } else if (!strcasecmp(argv[0],"databases") && argc == 2) {
-            server.dbnum = atoi(argv[1]);
-            if (server.dbnum < 1) {
-                err = "Invalid number of databases"; goto loaderr;
-            }
-        } else if (!strcasecmp(argv[0],"maxclients") && argc == 2) {
-            server.maxclients = atoi(argv[1]);
-        } else if (!strcasecmp(argv[0],"maxmemory") && argc == 2) {
-            server.maxmemory = atoi(argv[1]);
-        } else if (!strcasecmp(argv[0],"slaveof") && argc == 3) {
-            server.masterhost = sdsnew(argv[1]);
-            server.masterport = atoi(argv[2]);
-            server.replstate = REDIS_REPL_CONNECT;
-        } else if (!strcasecmp(argv[0],"glueoutputbuf") && argc == 2) {
-            if ((server.glueoutputbuf = yesnotoi(argv[1])) == -1) {
-                err = "argument must be 'yes' or 'no'"; goto loaderr;
-            }
-        } else if (!strcasecmp(argv[0],"shareobjects") && argc == 2) {
-            if ((server.shareobjects = yesnotoi(argv[1])) == -1) {
-                err = "argument must be 'yes' or 'no'"; goto loaderr;
-            }
-        } else if (!strcasecmp(argv[0],"shareobjectspoolsize") && argc == 2) {
-            server.sharingpoolsize = atoi(argv[1]);
-            if (server.sharingpoolsize < 1) {
-                err = "invalid object sharing pool size"; goto loaderr;
-            }
-        } else if (!strcasecmp(argv[0],"daemonize") && argc == 2) {
-            if ((server.daemonize = yesnotoi(argv[1])) == -1) {
-                err = "argument must be 'yes' or 'no'"; goto loaderr;
-            }
-        } else if (!strcasecmp(argv[0],"requirepass") && argc == 2) {
-          server.requirepass = zstrdup(argv[1]);
-        } else if (!strcasecmp(argv[0],"pidfile") && argc == 2) {
-          server.pidfile = zstrdup(argv[1]);
-        } else if (!strcasecmp(argv[0],"dbfilename") && argc == 2) {
-          server.dbfilename = zstrdup(argv[1]);
-        } else {
-            err = "Bad directive or wrong number of arguments"; goto loaderr;
-        }
-        for (j = 0; j < argc; j++)
-            sdsfree(argv[j]);
-        zfree(argv);
-        sdsfree(line);
-    }
-    if (fp != stdin) fclose(fp);
-    return;
-
-loaderr:
-    fprintf(stderr, "\n*** FATAL CONFIG FILE ERROR ***\n");
-    fprintf(stderr, "Reading the configuration file, at line %d\n", linenum);
-    fprintf(stderr, ">>> '%s'\n", line);
-    fprintf(stderr, "%s\n", err);
-    exit(1);
 }
 
 static void freeClientArgv(redisClient *c) {
@@ -4399,30 +4256,6 @@ static void setupSigSegvAction(void) {
 }
 #endif /* HAVE_BACKTRACE */
 
-/* =================================== Main! ================================ */
-
-#ifdef __linux__
-int linuxOvercommitMemoryValue(void) {
-    FILE *fp = fopen("/proc/sys/vm/overcommit_memory","r");
-    char buf[64];
-
-    if (!fp) return -1;
-    if (fgets(buf,64,fp) == NULL) {
-        fclose(fp);
-        return -1;
-    }
-    fclose(fp);
-
-    return atoi(buf);
-}
-
-void linuxOvercommitMemoryWarning(void) {
-    if (linuxOvercommitMemoryValue() == 0) {
-        redisLog(REDIS_WARNING,"WARNING overcommit_memory is set to 0! Background save may fail under low condition memory. To fix this issue add 'vm.overcommit_memory = 1' to /etc/sysctl.conf and then reboot or run the command 'sysctl vm.overcommit_memory=1' for this to take effect.");
-    }
-}
-#endif /* __linux__ */
-
 static void daemonize(void) {
     int fd;
     FILE *fp;
@@ -4449,15 +4282,7 @@ static void daemonize(void) {
 
 int main(int argc, char **argv) {
     initServerConfig();
-    if (argc == 2) {
-        ResetServerSaveParams();
-        loadServerConfig(argv[1]);
-    } else if (argc > 2) {
-        fprintf(stderr,"Usage: ./redis-server [/path/to/redis.conf]\n");
-        exit(1);
-    } else {
-        redisLog(REDIS_WARNING,"Warning: no config file specified, using the default config. In order to specify a config file use 'redis-server /path/to/redis.conf'");
-    }
+   
     initServer();
     if (server.daemonize) daemonize();
     redisLog(REDIS_NOTICE,"Server started, Redis version " REDIS_VERSION);

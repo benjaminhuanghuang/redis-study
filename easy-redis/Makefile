@@ -4,10 +4,10 @@ CCOPT= $(CFLAGS)
 OBJ = adlist.o ae.o anet.o dict.o redis.o sds.o zmalloc.o lzf_c.o lzf_d.o pqsort.o
 CLIOBJ = anet.o sds.o adlist.o redis-cli.o zmalloc.o
 
-SERVER = redis-server.exe
-CLIENT = redis-cli.exe
+SERVER = server.exe
+CLIENT = cli.exe
 
-all: redis-server redis-cli
+all: server.exe cli.exe
 
 # Deps (use make dep to generate this)
 adlist.o: adlist.c adlist.h zmalloc.h
@@ -22,11 +22,11 @@ redis.o: redis.c fmacros.h ae.h sds.h anet.h dict.h adlist.h zmalloc.h lzf.h pqs
 sds.o: sds.c sds.h zmalloc.h
 zmalloc.o: zmalloc.c config.h
 
-redis-server: $(OBJ)
+$(SERVER): $(OBJ)
 	$(CC) -o $(SERVER) $(CCOPT) $(DEBUG) $(OBJ)
 
-redis-cli: $(CLIOBJ)
-	$(CC) -o $(CLIPRGNAME) $(CCOPT) $(DEBUG) $(CLIOBJ)
+$(CLIENT): $(CLIOBJ)
+	$(CC) -o $(CLIENT) $(CCOPT) $(DEBUG) $(CLIOBJ)
 
 clean:
-	rm -rf $(SERVER) $(CLIENT)  *.o
+	rm -rf $(SERVER) $(CLIENT)  *.o *.exe
