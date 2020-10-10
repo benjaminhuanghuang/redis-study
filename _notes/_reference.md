@@ -7,6 +7,10 @@
 
 
 ## Web
+- redis源码解析(https://redissrc.readthedocs.io/en/latest)
+
+- 如何阅读 Redis 源码？
+
 - 这可能是你见过最好的Redis主从复制原理
 
 - Redis 源码日志
